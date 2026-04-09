@@ -64,7 +64,7 @@ export default function ProfesorDashboard() {
 ) : (
     <div className="flex flex-col items-center justify-center p-12 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl">
         <h1 className="text-xl font-black text-slate-800">¡Todo al día, Profe!</h1>
-        <p className="text-sm text-slate-400 mt-2 text-center max-w-[200px]">
+        <p className="text-sm text-slate-400 mt-2 text-center max-w-200px">
             No hay tareas pendientes de calificación por ahora.
         </p>
     </div>

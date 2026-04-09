@@ -1,37 +1,31 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from "motion/react"
+import { supabase } from '../lib/supabaseClient';
 import SideBar from '../components/SideBar';
 import Tittle from '../components/Tittle';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import ModalForm from '../components/ModalForm';
+import { useAlumnos } from '../hooks/useAlumnos';
+import { useMaterias } from '../hooks/useMaterias';
+import { useProfesores } from '../hooks/useProfesores';
 
 export default function AdministradorDashboard() {
-
+    const { alumnos, loadingAlumno, addAlumno, updateAlumno} = useAlumnos();
+    const { materias, loadingMateria, addMateria, updateMateria}  = useMaterias();
+    const { profesores, loadingProfesor, addProfesor, updateProfesor } = useProfesores();
     const [activeSection, setActiveSection] = useState('alumnos');
+    const [modalConfig, setModalConfig] = useState({ open: false, tipo: '' });
 
-    const [materias, setMaterias] = useState([
-        { id: 1, nombre: 'Matemáticas', texto:'Materia Curricular' },
-        { id: 2, nombre: 'Español', texto:'Materia Curricular' },
-        { id: 3, nombre: 'Ciencias', texto:'Materia Curricular' },
-        { id: 4, nombre: 'Historia', texto:'Materia Curricular' }
-    ]);
 
-    const [profesores, setProfesores] = useState([
-        { id: 1, nombre: 'Alberto Gómez', texto: 'Matemáticas' },
-        { id: 2, nombre: 'Juan Pérez', texto: 'Matemáticas' },
-        { id: 3, nombre: 'María García', texto: 'Ciencias' },
-        { id: 4, nombre: 'Luis Pérez', texto: 'Ciencias' }
-    ]);
 
-    const [alumnos, setAlumnos] = useState([
-        { id: 1, nombre: 'Juan', apellido: 'Pérez', edad: 12, dni: '12345678A', activo: true },
-        { id: 2, nombre: 'María', apellido: 'García', edad: 11, dni: '87654321B', activo: false },
-        { id: 3, nombre: 'Luis', apellido: 'Pérez', edad: 12, dni: '12345678A', activo: true },
-        { id: 4, nombre: 'Alberto', apellido: 'Gómez', edad: 11, dni: '87654321B', activo: false }
-    ]);
+    const abrirModal = (tipo) => setModalConfig({ open: true, tipo });
+    const cerrarModal = () => setModalConfig({ open: false, tipo: '' });
 
     return (
         <div className="min-h-screen bg-slate-50 flex">
+
+            <ModalForm isOpen={modalConfig.open} onClose={cerrarModal} tipo={modalConfig.tipo}/>
 
             <SideBar setActiveSection={setActiveSection} activeSection={activeSection}/>
 
@@ -42,7 +36,7 @@ export default function AdministradorDashboard() {
 
                 <AnimatePresence mode="wait">
                 <motion.div
-                    key={activeSection} // Clave para que Framer sepa que cambió el contenido
+                    key={activeSection}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
@@ -57,13 +51,13 @@ export default function AdministradorDashboard() {
                             descripcion='Informacion de los alumnos del colegio.'
                             />
 
-                            <Button text={'+ Inscribir Alumno'}/>
+                            <Button text={'+ Inscribir Alumno'} onClick={() => abrirModal('alumno')}/>
 
-                            <div className="w-full bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                            <div className="w-full bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mt-3">
                             {/* Cabecera - Usamos grid para alineación perfecta */}
                             <div className="grid grid-cols-5 gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                 <span>Nombre</span>
-                                <span>Edad</span>
+                                <span>Grupo</span>
                                 <span>DNI</span>
                                 <span>Estado</span>
                                 <span className="text-right">Acciones</span>
@@ -80,7 +74,7 @@ export default function AdministradorDashboard() {
                                     <span className="text-sm font-medium text-slate-700">{value.nombre}</span>
 
                                     {/* Edad */}
-                                    <span className="text-sm text-slate-600">{value.edad} años</span>
+                                    <span className="text-sm text-slate-600">{value.grupo_id}</span>
 
                                     {/* DNI */}
                                     <span className="text-sm text-slate-500 font-mono">{value.dni}</span>
@@ -89,12 +83,12 @@ export default function AdministradorDashboard() {
                                     <div>
                                     <span
                                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                        value.activo
+                                        value.estado
                                             ? 'bg-green-100 text-green-700'
                                             : 'bg-slate-100 text-slate-600'
                                         }`}
                                     >
-                                        {value.activo ? 'Activo' : 'Inactivo'}
+                                        {value.estado ? 'Activo' : 'Inactivo'}
                                     </span>
                                     </div>
 
@@ -122,7 +116,7 @@ export default function AdministradorDashboard() {
                             descripcion='Informacion de los profesores del colegio.'
                             />
 
-                            <Button text={'+ Agregar Profesor'}/>
+                            <Button text={'+ Agregar Profesor'} onClick={() => abrirModal('profesor')}/>
 
                             <Card datos={profesores}/>
                         </div>
@@ -135,7 +129,7 @@ export default function AdministradorDashboard() {
                             descripcion='Gestión de materias y programas académicos del ciclo lectivo.'
                             />
                             
-                            <Button text={'+ Nueva Materia'}/>
+                            <Button text={'+ Nueva Materia'} onClick={() => abrirModal('materia')}/>
 
                             <Card datos={materias}/>
                         </div>
