@@ -26,6 +26,19 @@ ________________________________________________________________________________
 
 _____________________________________________________________________________________________________________________________________________________________________________________________________________________
 
+**Lógica de Negocio & Acuerdos con el Cliente**
+
+Para este MVP, se establecieron las siguientes reglas de cálculo y gestión (Confirmadas vía Email 08/04/2026):
+
+* **Ciclo Escolar:** Dividido en 4 Bimestres.
+* **Estructura de Calificaciones:** 5 notas parciales por materia/bimestre.
+* **Cálculo de Promedio:** * Promedio simple automático.
+* **Restricción:** El promedio solo se proyecta si existen ≥ 3 notas cargadas.
+* **Cierre de Bimestre:** Discrecional del docente (permite cerrar con menos de 5 notas si las instancias evaluativas fueron menores).
+* **Integridad de Datos:** Las materias pueden ser gestionadas (Alta/Baja/Modificación) exclusivamente por perfiles Administrativos.
+
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________
+
 Setup & Instalación
 1. Clonar el repositorio: `git clone [URL]`
 2. Instalar dependencias: `npm install`
