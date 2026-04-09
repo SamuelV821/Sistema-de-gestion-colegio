@@ -12,21 +12,25 @@ export default function Button({text,onClick}){
                 damping: 30
             }}
 
-            whileHover={{backgroundColor: "#22c55e"}}
+            whileHover={{backgroundColor: "#4f46e5"}}
 
             whileTap={{ 
                 scale: 0.9,
-                backgroundColor: "#064e3b",
                 rotate: "0.1deg" 
             }}
 
 
             className="
-            bg-zinc-800
+            bg-slate-900
+            shadow-lg
+            shadow-slate-100
             text-white
+            text-xs
+            md:text-sm
             font-bold
             w-fit
-            pl-6 pr-6 p-3
+            md:pl-6 md:pr-6 md:p-3
+            pl-3 pr-3 p-2
             rounded-2xl "
             onClick={onClick}>{text}</motion.button>
     );
