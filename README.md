@@ -37,6 +37,28 @@ Para este MVP, se establecieron las siguientes reglas de cálculo y gestión (Co
 * **Cierre de Bimestre:** Discrecional del docente (permite cerrar con menos de 5 notas si las instancias evaluativas fueron menores).
 * **Integridad de Datos:** Las materias pueden ser gestionadas (Alta/Baja/Modificación) exclusivamente por perfiles Administrativos.
 
+> Actualización de Requerimientos de Interfaz (09/04/2026)
+
+Tras la última revisión con el cliente, se han integrado los siguientes estándares técnicos para garantizar la accesibilidad y portabilidad del sistema:
+
+### 1. Diseño Adaptativo Multi-dispositivo (Responsive Design)
+La interfaz ha sido reconstruida bajo una metodología **Mobile-First**, asegurando una experiencia fluida mediante el uso de **Tailwind CSS** y **CSS Grid/Flexbox**.
+* **Mobile (<768px):** Vistas simplificadas con menús colapsables y tablas con scroll horizontal optimizado.
+* **Tablets (768px - 1199px):** Layouts de dos columnas para gestión de materias y listas de alumnos.
+* **Desktop (1200px+):** Aprovechamiento total del ancho de pantalla para planillas de calificación extensas y paneles administrativos.
+
+### 2. Optimización de Interacción (Touch-friendly)
+Se han ajustado todos los elementos interactivos para entornos táctiles:
+* **Áreas de contacto:** Botones y selectores con un tamaño mínimo de **44x44px** para evitar errores de precisión.
+* **Inputs de Calificación:** Optimizados para el despliegue de teclados numéricos nativos en dispositivos móviles.
+* **Navegación:** Gestos de desplazamiento suaves y feedback visual inmediato al tacto.
+
+### 3. Progressive Web App (PWA) - Plus de Portabilidad
+El sistema incluye soporte para capacidades **PWA**, permitiendo:
+* **Instalación nativa:** Posibilidad de añadir el sistema a la pantalla de inicio en Android/iOS como una aplicación independiente.
+* **Brand Identity:** Configuración de manifiesto con iconos institucionales y colores corporativos (Indigo/Slate).
+* **Acceso Rápido:** Tiempos de carga reducidos mediante estrategias de caché para los activos críticos de la interfaz.
+
 _____________________________________________________________________________________________________________________________________________________________________________________________________________________
 
 Setup & Instalación
