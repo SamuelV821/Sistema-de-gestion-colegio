@@ -61,6 +61,37 @@ El sistema incluye soporte para capacidades **PWA**, permitiendo:
 
 _____________________________________________________________________________________________________________________________________________________________________________________________________________________
 
+Funcionalidad Extra: Panel de Control Administrativo
+Como propuesta de mejora y valor agregado para la institución, se desarrolló e implementó un Módulo de Administración Superior. Este panel permite al responsable o director del colegio:
+
+* Gestión de Materias: Alta, baja y modificación de asignaturas y cargas horarias.
+
+* Gestión de Profesores: Vinculación de docentes con sus respectivas materias y especialidades.
+
+* Gestión de Alumnos: Administración de matrículas, asignación de grupos y control de estados (Activo/Inactivo).
+
+Esta funcionalidad centraliza el manejo del sistema, permitiendo que la configuración escolar sea autónoma y no dependa de intervenciones técnicas en la base de datos.
+
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+Estructura de Datos (BaaS Endpoints)
+Al utilizar una arquitectura Headless con Supabase, la persistencia y consulta de datos se gestiona a través de los siguientes endpoints de tabla, garantizando integridad referencial y seguridad mediante políticas RLS:
+
+* perfiles: Punto de control de identidad. Vincula auth.users con metadatos de usuario y asignación de roles estricta (Administrador, Profesor, Padre).
+
+* alumnos: Gestión de registros biográficos. Contiene DNI, nombre_completo y la clave foránea grupo_id para la segmentación por curso.
+
+* profesores: Almacena credenciales profesionales y el array materias_ids, permitiendo la relación lógica entre el docente y sus asignaturas asignadas.
+
+* materias: Repositorio de asignaturas. Define la nombre de la materia, su estado (activo/inactivo) y la carga_horaria.
+
+* grupos: Entidad de agrupación académica (ej. "1er Año", "2do Año") que sirve como eje para la inscripción de alumnos.
+
+* calificaciones: Endpoint transaccional crítico. Registra el progreso académico mediante notas parciales (p1 a p5), cálculo de promedio automático y la bandera de cerrada para la integridad del bimestre.
+
+* grupos_materias: Tabla de unión (Junction Table) que resuelve la relación muchos-a-muchos, permitiendo que una materia pertenezca a un grupo específico.
+
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________
 
 Setup & Instalación
 1. Clonar el repositorio: `git clone [URL]`
@@ -70,4 +101,24 @@ Setup & Instalación
    * `VITE_SUPABASE_ANON_KEY`
 4. Ejecutar en local: `npm run dev`
 
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________
 
+🔑 Acceso al Sistema
+El sistema se encuentra desplegado y optimizado para su uso inmediato en el siguiente enlace:
+
+🌐 Enlace del Proyecto: https://colegio.samuel-v.dev/
+
+Credenciales de Prueba
+Para facilitar la revisión de las diferentes interfaces según el rol, se han habilitado las siguientes cuentas de acceso:
+
+Administrador:	admin@lospinos.edu.ar	   Admin2026!
+
+Profesor:	   profesor@lospinos.edu.ar	Profesor2026!
+
+Padre:         padre@lospinos.edu.ar      Padre2026!
+
+**Links Loom:**
+
+* Demo: https://www.loom.com/share/55cb9e41a7384dec928681c7e1f10dbf
+
+* Detrás de escenas: https://www.loom.com/share/e8995988f96948ea8cbf09863a582010
