@@ -11,7 +11,7 @@ export function useProfesores() {
             const { data, error } = await supabase
                 .from('profesores')
                 .select('*')
-                .order('apellido', { ascending: true });
+                .order('nombre', { ascending: true });
 
             if (error) throw error;
             setProfesores(data);
@@ -35,12 +35,11 @@ export function useProfesores() {
 
     useEffect(() => { fetchProfesores(); }, []);
 
-
     const updateProfesor = async (id, cambios) => {
         try {
             const { data, error } = await supabase
                 .from('profesores')
-                .update(cambios) // cambios puede ser { especialidad: 'Ingeniero en IA' }
+                .update(cambios) 
                 .eq('id', id)
                 .select();
 
