@@ -61,6 +61,7 @@ El sistema incluye soporte para capacidades **PWA**, permitiendo:
 
 _____________________________________________________________________________________________________________________________________________________________________________________________________________________
 
+
 Setup & Instalación
 1. Clonar el repositorio: `git clone [URL]`
 2. Instalar dependencias: `npm install`
