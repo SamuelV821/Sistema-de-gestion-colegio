@@ -4,35 +4,62 @@ import { supabase } from '../lib/supabaseClient';
 export default function ModalForm({ isOpen, onClose, tipo, herramientas, itemAEditar }) {
     const [formData, setFormData] = useState({});
     const [grupos, setGrupos] = useState([]);
-    const [loadingGrupos, setLoadingGrupos] = useState(false);
+    const [materiasDisponibles, setMateriasDisponibles] = useState([]);
+    const [loadingData, setLoadingData] = useState(false);
 
+    // 1. CARGA DE DATOS AUXILIARES
     useEffect(() => {
-        if (isOpen && tipo === 'materia') {
-            const fetchGrupos = async () => {
-                setLoadingGrupos(true);
-                try {
+        if (!isOpen) return;
+
+        const fetchData = async () => {
+            setLoadingData(true);
+            try {
+                // Si es Alumno o Materia, necesitamos los Grupos
+                if (tipo === 'materia' || tipo === 'alumno') {
                     const { data, error } = await supabase
                         .from('grupos')
                         .select('*')
                         .order('nombre', { ascending: true });
                     if (error) throw error;
                     setGrupos(data);
-                } catch (error) {
-                    console.error('❌ Error al cargar grupos:', error.message);
-                } finally {
-                    setLoadingGrupos(false);
+                } 
+                
+                // Si es Profesor, necesitamos todas las Materias
+                if (tipo === 'profesor') {
+                    const { data, error } = await supabase
+                        .from('materias')
+                        .select('id, nombre, estado')
+                        // He quitado el filtro .eq('estado', true) para que veas todas. 
+                        // Si quieres filtrar, vuelve a agregarlo.
+                        .order('nombre', { ascending: true });
+                    if (error) throw error;
+                    setMateriasDisponibles(data);
                 }
-            };
-            fetchGrupos();
-        }
+            } catch (error) {
+                console.error('❌ Error:', error.message);
+            } finally {
+                setLoadingData(false);
+            }
+        };
+
+        fetchData();
     }, [isOpen, tipo]);
 
+    // 2. INICIALIZACIÓN DE FORMULARIO
     useEffect(() => {
         if (isOpen) {
             if (itemAEditar) {
-                setFormData(itemAEditar);
+                setFormData({
+                    ...itemAEditar,
+                    materias_ids: itemAEditar.materias_ids || [],
+                    grupo_ids: itemAEditar.grupo_ids || []
+                });
             } else {
-                setFormData(tipo === 'materia' ? { grupo_ids: [] } : {});
+                setFormData({
+                    estado: true,
+                    materias_ids: [],
+                    grupo_ids: []
+                });
             }
         }
     }, [isOpen, itemAEditar]);
@@ -40,249 +67,202 @@ export default function ModalForm({ isOpen, onClose, tipo, herramientas, itemAEd
     if (!isOpen) return null;
 
     const esEdicion = Boolean(formData.id);
-
     const titulos = {
         alumno: esEdicion ? "Editar Alumno" : "Inscribir Nuevo Alumno",
         profesor: esEdicion ? "Editar Docente" : "Registrar Personal Docente",
         materia: esEdicion ? "Editar Asignatura" : "Crear Nueva Asignatura"
     };
 
+    // 3. HANDLERS
     const capturarDatos = (e) => {
         let valor = e.target.value;
         if (e.target.name === 'estado') valor = valor === 'true';
         setFormData({ ...formData, [e.target.name]: valor });
     };
 
-    // Solo permite 1 grupo: si ya está seleccionado lo deselecciona, si no reemplaza
+    const toggleMateria = (materiaId) => {
+        const idNum = Number(materiaId);
+        const actuales = formData.materias_ids || [];
+        const nuevosIds = actuales.includes(idNum)
+            ? actuales.filter(id => id !== idNum)
+            : [...actuales, idNum];
+        setFormData({ ...formData, materias_ids: nuevosIds });
+    };
+
     const toggleGrupo = (grupoId) => {
-        const grupoIdNum = Number(grupoId);
-        const actual = formData.grupo_ids?.[0];
-        setFormData({
-            ...formData,
-            grupo_ids: actual === grupoIdNum ? [] : [grupoIdNum]
-        });
+        const idNum = Number(grupoId);
+        // Para materias/alumnos solemos usar un solo grupo, pero lo guardamos en array
+        setFormData({ ...formData, grupo_ids: [idNum] });
     };
 
     const Guardar = async (e) => {
         e.preventDefault();
-        if (esEdicion && herramientas.update) {
-            const { success, error } = await herramientas.update(formData.id, formData);
-            if (success) onClose();
-            else alert("Error al actualizar: " + error);
-        } else if (!esEdicion && herramientas.add) {
-            const { success, error } = await herramientas.add(formData);
-            if (success) onClose();
-            else alert("Error al guardar: " + error);
-        }
-    };
+        
+        // 1. Clonamos el formData para no romper la UI
+        const copiaDatos = { ...formData };
 
-    const handleEliminarProfesor = async () => {
-        if (window.confirm("¿Está seguro que desea eliminar a este docente del sistema?")) {
-            const { success, error } = await herramientas.update(formData.id, { ...formData, estado: false });
-            if (success) onClose();
-            else alert("Error al eliminar: " + error);
-        }
-    };
+        // 2. Extraemos los datos que NO son columnas de la tabla 'materias'
+        // Esto evita el error de "columna no existe"
+        const { grupo_ids, materias_ids, ...datosLimpios } = copiaDatos;
 
-    const grupoSeleccionado = formData.grupo_ids?.[0] ?? null;
+        // 3. Dependiendo del tipo, decidimos qué enviar
+        let dataToSend = datosLimpios;
+        
+        // Si es profesor, conservamos materias_ids porque esa columna SÍ existe en 'profesores'
+        if (tipo === 'profesor') {
+            dataToSend = { ...datosLimpios, materias_ids };
+        }
+
+        // Si es alumno, nos aseguramos de usar grupo_id (singular) si así está en tu DB
+        if (tipo === 'alumno') {
+            dataToSend = { ...datosLimpios, grupo_id: formData.grupo_id };
+        }
+
+        // 4. Ejecutamos la acción (Aquí pasamos grupo_ids por fuera si el hook lo necesita)
+        const payload = tipo === 'materia' ? { ...datosLimpios, grupo_id: grupo_ids?.[0] } : dataToSend;
+
+        const { success, error } = esEdicion 
+            ? await herramientas.update(formData.id, payload)
+            : await herramientas.add(payload);
+        
+        if (success) onClose();
+        else alert("Error: " + error);
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
             <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
-
-                <div className="bg-slate-900 p-6 text-white flex justify-between items-center flex-shrink-0">
+                
+                {/* Header */}
+                <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0">
                     <div>
-                        <h2 className="text-xl font-black">{titulos[tipo]}</h2>
-                        <p className="text-slate-400 text-xs uppercase font-bold mt-1">Sistema Los Pinos</p>
+                        <h2 className="text-xl font-black uppercase tracking-tighter">{titulos[tipo]}</h2>
+                        <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Sistema Los Pinos</p>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-2xl">×</button>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl">×</button>
                 </div>
 
-                <form className="p-8 space-y-5 overflow-y-auto flex-1" onSubmit={Guardar}>
-
+                <form className="p-8 space-y-5 overflow-y-auto flex-1 custom-scrollbar" onSubmit={Guardar}>
+                    
+                    {/* NOMBRE - Común */}
                     <div>
-                        <label className="block text-xs font-black text-slate-500 uppercase mb-2">Nombre Completo / Materia</label>
+                        <label className="block text-xs font-black text-slate-500 uppercase mb-2">Nombre / Descripción</label>
                         <input
-                            type="text"
-                            name="nombre"
+                            type="text" name="nombre" required
                             value={formData.nombre || ''}
                             onChange={capturarDatos}
-                            required
-                            placeholder="Ej. Juan Pérez / Matemáticas"
-                            className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none transition-all"
+                            className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold"
                         />
                     </div>
 
+                    {/* LÓGICA ALUMNO */}
                     {tipo === 'alumno' && (
                         <>
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase mb-2">DNI</label>
                                 <input
-                                    type="number"
-                                    name="dni"
+                                    type="number" name="dni" required
                                     value={formData.dni || ''}
                                     onChange={capturarDatos}
-                                    required
-                                    className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Año / Grado</label>
-                                <div className="relative">
-                                    <select
-                                        name="grupo_id"
-                                        value={formData.grupo_id || ''}
-                                        onChange={capturarDatos}
-                                        required
-                                        className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none appearance-none transition-all font-bold text-slate-700 cursor-pointer"
-                                    >
-                                        <option value="" disabled>Seleccionar grupo...</option>
-                                        <option value="1">1er Año</option>
-                                        <option value="2">2do Año</option>
-                                        <option value="3">3er Año</option>
-                                        <option value="4">4to Año</option>
-                                        <option value="5">5to Año</option>
-                                        <option value="6">6to Año</option>
-                                    </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
-                                        <span className="text-xs">▼</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    {tipo === 'profesor' && (
-                        <div>
-                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Especialidad (Título)</label>
-                            <input
-                                type="text"
-                                name="especialidad"
-                                value={formData.especialidad || ''}
-                                onChange={capturarDatos}
-                                required
-                                placeholder="Ej. Ing. en Sistemas"
-                                className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                    )}
-
-                    {tipo === 'materia' && (
-                        <>
-                            <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Carga Horaria Semanal</label>
-                                <input
-                                    type="number"
-                                    name="carga_horaria"
-                                    value={formData.carga_horaria || ''}
-                                    onChange={capturarDatos}
-                                    required
-                                    placeholder="Ej. 4"
                                     className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none"
                                 />
                             </div>
-
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase mb-3">
-                                    Grupo Asignado
-                                    {grupoSeleccionado && (
-                                        <span className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-xs normal-case font-bold">
-                                            1 seleccionado
-                                        </span>
-                                    )}
-                                </label>
-
-                                {loadingGrupos ? (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {[...Array(6)].map((_, i) => (
-                                            <div key={i} className="h-11 bg-slate-100 rounded-xl animate-pulse" />
-                                        ))}
-                                    </div>
-                                ) : grupos.length === 0 ? (
-                                    <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl text-center">
-                                        No hay grupos disponibles
-                                    </p>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {grupos.map(grupo => {
-                                            const seleccionado = grupoSeleccionado === grupo.id;
-                                            return (
-                                                <button
-                                                    key={grupo.id}
-                                                    type="button"
-                                                    onClick={() => toggleGrupo(grupo.id)}
-                                                    className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all font-bold text-sm cursor-pointer
-                                                        ${seleccionado
-                                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                                            : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-300'
-                                                        }`}
-                                                >
-                                                    {/* Radio visual en lugar de checkbox */}
-                                                    <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all
-                                                        ${seleccionado
-                                                            ? 'border-indigo-600 bg-indigo-600'
-                                                            : 'border-slate-300'
-                                                        }`}
-                                                    >
-                                                        {seleccionado && (
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-white block" />
-                                                        )}
-                                                    </span>
-                                                    {grupo.nombre}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Grupo / Año</label>
+                                <select 
+                                    name="grupo_id" 
+                                    value={formData.grupo_id || ''} 
+                                    onChange={capturarDatos}
+                                    className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-slate-700"
+                                >
+                                    <option value="">Seleccionar grupo...</option>
+                                    {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+                                </select>
                             </div>
                         </>
                     )}
 
-                    {esEdicion && (tipo === 'alumno' || tipo === 'materia') && (
-                        <div>
-                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Estado del Registro</label>
-                            <div className="relative">
-                                <select
-                                    name="estado"
-                                    value={formData.estado !== false ? 'true' : 'false'}
+                    {/* LÓGICA PROFESOR */}
+                    {tipo === 'profesor' && (
+                        <>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Especialidad</label>
+                                <input
+                                    type="text" name="especialidad" required
+                                    value={formData.especialidad || ''}
                                     onChange={capturarDatos}
-                                    className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white outline-none appearance-none transition-all font-bold text-slate-700 cursor-pointer"
-                                >
-                                    <option value="true">Activo</option>
-                                    <option value="false">Inactivo</option>
-                                </select>
-                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
-                                    <span className="text-xs">▼</span>
+                                    className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Materias Asignadas</label>
+                                <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 max-h-40 overflow-y-auto">
+                                    {materiasDisponibles.map(m => (
+                                        <label key={m.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-all">
+                                            <input 
+                                                type="checkbox"
+                                                checked={formData.materias_ids?.includes(m.id)}
+                                                onChange={() => toggleMateria(m.id)}
+                                                className="w-5 h-5 rounded border-2 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="text-sm font-bold text-slate-600">{m.nombre}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
+                        </>
+                    )}
+
+                    {/* LÓGICA MATERIA */}
+                    {tipo === 'materia' && (
+                        <>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Carga Horaria</label>
+                                <input
+                                    type="number" name="carga_horaria" required
+                                    value={formData.carga_horaria || ''}
+                                    onChange={capturarDatos}
+                                    className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-2">Grupo</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {grupos.map(g => (
+                                        <button
+                                            key={g.id} type="button"
+                                            onClick={() => toggleGrupo(g.id)}
+                                            className={`p-3 rounded-xl border-2 font-bold text-xs transition-all ${formData.grupo_ids?.includes(g.id) ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-100 bg-slate-50 text-slate-500'}`}
+                                        >
+                                            {g.nombre}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* ESTADO - Para edición */}
+                    {esEdicion && (
+                        <div>
+                            <label className="block text-xs font-black text-slate-500 uppercase mb-2">Estado</label>
+                            <select
+                                name="estado"
+                                value={formData.estado ? 'true' : 'false'}
+                                onChange={capturarDatos}
+                                className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold"
+                            >
+                                <option value="true">Activo</option>
+                                <option value="false">Inactivo</option>
+                            </select>
                         </div>
                     )}
 
-                    <div className="pt-4 flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all"
-                        >
-                            Cancelar
-                        </button>
-
-                        {esEdicion && tipo === 'profesor' && (
-                            <button
-                                type="button"
-                                onClick={handleEliminarProfesor}
-                                className="flex-1 py-3 font-black text-red-600 bg-red-100 hover:bg-red-200 rounded-xl transition-all"
-                            >
-                                ELIMINAR
-                            </button>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={herramientas?.loading}
-                            className="flex-1 py-3 bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
-                        >
-                            {herramientas?.loading ? 'GUARDANDO...' : (esEdicion ? 'ACTUALIZAR' : 'GUARDAR')}
+                    {/* BOTONES */}
+                    <div className="pt-4 flex gap-3 sticky bottom-0 bg-white">
+                        <button type="button" onClick={onClose} className="flex-1 py-3 font-bold text-slate-400 hover:bg-slate-100 rounded-xl">Cancelar</button>
+                        <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-black rounded-xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
+                            {esEdicion ? 'ACTUALIZAR' : 'GUARDAR'}
                         </button>
                     </div>
                 </form>
